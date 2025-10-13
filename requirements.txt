@@ -1,0 +1,5 @@
+# Base requirements
+-r requirements-base.txt
+
+# EasyOCR Engine (CPU optimized)
+-r requirements-easyocr-cpu.txt

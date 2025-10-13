@@ -1,0 +1,29 @@
+# Virtual environments
+venv/
+venv_easyocr/
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs and runtime files
+*.log
+*.pid
+easyocr_setup.log
+
+# Configuration files with sensitive data
+**/config/*token*
+**/config/*key*
+**/config/*secret*
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+.DS_Store
+
+# EasyOCR model cache
+.EasyOCR/
+
+# IDE files
+.vscode/
+.idea/
