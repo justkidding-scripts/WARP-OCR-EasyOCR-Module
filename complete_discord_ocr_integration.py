@@ -70,6 +70,14 @@ except ImportError as e:
     DiscordScreenshareOCR = None
 
 try:
+    # Import Discord launcher
+    from discord_launcher import DiscordLauncher
+    HAS_DISCORD_LAUNCHER = True
+except ImportError as e:
+    print(f"Discord launcher not available: {e}")
+    DiscordLauncher = None
+
+try:
     import cv2
     import numpy as np
     import pyautogui
@@ -237,6 +245,7 @@ class IntegratedDiscordOCRSystem:
         self.overlay_manager = None
         self.discord_integration = None
         self.main_system = None
+        self.discord_launcher = None
         
         # State
         self.running = False
@@ -354,6 +363,22 @@ class IntegratedDiscordOCRSystem:
                 logging.info("Discord integration disabled or not available")
                 self.discord_integration = None
             
+            # Initialize Discord launcher
+            if HAS_DISCORD_LAUNCHER and DiscordLauncher:
+                try:
+                    self.discord_launcher = DiscordLauncher()
+                    logging.info("Discord launcher initialized")
+                    
+                    # Auto-launch Discord if enabled
+                    if self.config.get('auto_launch_discord', True):
+                        self._launch_discord_if_needed()
+                except Exception as e:
+                    logging.warning(f"Could not initialize Discord launcher: {e}")
+                    self.discord_launcher = None
+            else:
+                logging.info("Discord launcher not available")
+                self.discord_launcher = None
+            
             # Initialize main OCR system
             if HAS_MAIN_OCR and DiscordScreenshareOCR:
                 try:
@@ -427,6 +452,43 @@ class IntegratedDiscordOCRSystem:
                 self.running = False
                 
         return MinimalOCRSystem()
+    
+    def _launch_discord_if_needed(self):
+        """Launch Discord if not already running"""
+        if not self.discord_launcher:
+            logging.warning("Discord launcher not available")
+            return False
+        
+        try:
+            status = self.discord_launcher.get_discord_status()
+            
+            if not status['running']:
+                logging.info("🚀 Launching Discord for OCR monitoring...")
+                success = self.discord_launcher.launch_discord()
+                
+                if success:
+                    # Wait for Discord window if configured
+                    if self.config.get('wait_for_discord_window', True):
+                        window_ready = self.discord_launcher.wait_for_discord_window(
+                            timeout=self.config.get('discord_launch_timeout', 30)
+                        )
+                        if window_ready:
+                            logging.info("✅ Discord is ready for OCR monitoring")
+                        else:
+                            logging.warning("⚠️  Discord window not detected, but continuing")
+                    else:
+                        logging.info("✅ Discord launched successfully")
+                    return True
+                else:
+                    logging.error("❌ Failed to launch Discord")
+                    return False
+            else:
+                logging.info("✅ Discord is already running")
+                return True
+                
+        except Exception as e:
+            logging.error(f"Error launching Discord: {e}")
+            return False
     
     def start_system(self):
         """Start the complete OCR system"""
@@ -579,14 +641,21 @@ class IntegratedDiscordOCRSystem:
         metrics = self.performance_monitor.get_current_metrics()
         recommendations = self.performance_monitor.get_recommendations()
         
+        # Get Discord status if launcher is available
+        discord_status = {}
+        if self.discord_launcher:
+            discord_status = self.discord_launcher.get_discord_status()
+        
         status = {
             'running': self.running,
             'components': {
                 'ocr_engines': bool(self.main_ocr and self.fast_ocr and self.discord_ocr),
                 'overlays': bool(self.overlay_manager),
                 'discord_integration': bool(self.discord_integration),
+                'discord_launcher': bool(self.discord_launcher),
                 'performance_monitoring': self.config['enable_performance_monitoring']
             },
+            'discord': discord_status,
             'performance': metrics,
             'recommendations': recommendations,
             'config': self.config.copy()

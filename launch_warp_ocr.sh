@@ -150,6 +150,9 @@ EOF
   "ocr_interval": 2.0,
   "discord_bot_token": null,
   "discord_webhook_url": null,
+  "auto_launch_discord": true,
+  "discord_launch_timeout": 30,
+  "wait_for_discord_window": true,
   "enable_overlays": true,
   "enable_performance_monitoring": true,
   "enable_adaptive_control": true,
@@ -159,6 +162,49 @@ EOF
 }
 EOF
         info "Created system config at $system_config"
+    fi
+}
+
+# Launch Discord if enabled
+launch_discord() {
+    local config_file="$HOME/.config/discord_ocr_system.json"
+    local auto_launch_discord=true
+    
+    # Check configuration for Discord auto-launch
+    if [[ -f "$config_file" ]]; then
+        auto_launch_discord=$(python3 -c "import json; config=json.load(open('$config_file')); print(str(config.get('auto_launch_discord', True)).lower())" 2>/dev/null || echo "true")
+    fi
+    
+    if [[ "$auto_launch_discord" == "true" ]]; then
+        log "Checking Discord status..."
+        
+        # Activate virtual environment and launch Discord
+        source "$VENV_DIR/bin/activate"
+        cd "$SCRIPT_DIR"
+        
+        python3 -c "
+import sys
+sys.path.append('.')
+from discord_launcher import DiscordLauncher
+import logging
+
+logging.basicConfig(level=logging.INFO)
+launcher = DiscordLauncher()
+
+status = launcher.get_discord_status()
+if not status['running']:
+    print('🚀 Launching Discord...')
+    success = launcher.launch_discord()
+    if success:
+        launcher.wait_for_discord_window()
+        print('✅ Discord is ready for OCR monitoring')
+    else:
+        print('⚠️  Discord launch failed - continuing with OCR only')
+else:
+    print('✅ Discord is already running')
+"
+    else
+        info "Discord auto-launch disabled"
     fi
 }
 
@@ -172,7 +218,7 @@ start_ocr() {
     log "Starting WARP OCR Screenshare System..."
     
     if [[ "$USING_EASYOCR" == "true" ]]; then
-        info "Using EasyOCR virtual environment with PyTorch"
+        info "Using EasyOR virtual environment with PyTorch"
     else
         info "Using standard virtual environment with Tesseract"
     fi
@@ -180,6 +226,9 @@ start_ocr() {
     check_dependencies
     setup_venv
     setup_config
+    
+    # Launch Discord before starting OCR
+    launch_discord
     
     source "$VENV_DIR/bin/activate"
     cd "$SCRIPT_DIR"
