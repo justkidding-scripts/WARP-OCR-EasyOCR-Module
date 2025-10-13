@@ -1,5 +1,5 @@
 # EasyOCR with CPU support
---index-url https://download.pytorch.org/whl/cpu
+--index-url https/download.pytorch.org/whl/cpu
 torch>=2.0.0
 torchvision>=0.15.0
 torchaudio>=2.0.0
